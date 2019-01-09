@@ -36,6 +36,10 @@ public class MyBooleanExpression {
     private final Map<Map<String, Boolean>, Boolean> truthTable;
     private static LinkedHashMap<String, Integer> varToNumber = new LinkedHashMap<>();
 
+    public static int getVariablesNumber() {
+        return varToNumber.size();
+    }
+
     public static int varToNumber(String varName) {
         Integer value = varToNumber.get(varName);
         if (value == null) {

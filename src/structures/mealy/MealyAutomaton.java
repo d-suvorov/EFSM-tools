@@ -4,9 +4,8 @@ import bool.MyBooleanExpression;
 import scenario.StringActions;
 import scenario.StringScenario;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class MealyAutomaton {
     private final MealyNode startState;
@@ -117,7 +116,22 @@ public class MealyAutomaton {
             + "    0 [style = \"bold\"];\n");
 
         for (MealyNode state : states) {
-            for (MealyTransition t : state.transitions()) {
+            Collection<MealyTransition> transitions = state.transitions();
+
+            Collection<MealyTransition> mergedTransitions = new ArrayList<>();
+            Map<String, List<MealyTransition>> groupedTransitions = transitionsByEventName(transitions);
+            groupedTransitions.forEach((event, ts) -> {
+                if (canBeMerged(ts)) {
+                    MealyTransition t = ts.get(0);
+                    mergedTransitions.add(new MealyTransition(
+                            t.src(), t.dst(), event, MyBooleanExpression.getTautology(), t.actions()
+                    ));
+                } else {
+                    mergedTransitions.addAll(ts);
+                }
+            });
+
+            for (MealyTransition t : mergedTransitions) {
                 sb.append("    ").append(t.src().number()).append(" -> ").append(t.dst().number());
                 sb.append(" [label = \"").append(t.event()).append(" [").append(t.expr().toString()).append("] (")
                         .append(t.actions().toString()).append(") \"];\n");
@@ -126,5 +140,26 @@ public class MealyAutomaton {
 
         sb.append("}");
         return sb.toString();
+    }
+
+    private Map<String, List<MealyTransition>> transitionsByEventName(Collection<MealyTransition> transitions) {
+        return transitions.stream().collect(
+                Collectors.groupingBy(t -> extractEventName(t.event())));
+    }
+
+    private String extractEventName(String label) {
+        return label.substring(0, label.length() - MyBooleanExpression.getVariablesNumber());
+    }
+
+    private boolean canBeMerged(Collection<MealyTransition> transitions) {
+        boolean sameDst = transitions.stream().map(MealyTransition::dst).distinct().count() == 1;
+        if (!sameDst) {
+            return false;
+        }
+        boolean sameActions = transitions.stream().map(MealyTransition::actions).distinct().count() == 1;
+        if (!sameActions) {
+            return false;
+        }
+        return transitions.size() == Math.pow(2, MyBooleanExpression.getVariablesNumber());
     }
 }
