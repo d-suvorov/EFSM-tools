@@ -54,6 +54,17 @@ public class MyBooleanExpression {
         return value;
     }
 
+    public static String numberToVar(int number) {
+        Optional<Map.Entry<String, Integer>> entry = varToNumber.entrySet().stream()
+                .filter(e -> e.getValue() == number)
+                .findAny();
+        if (entry.isPresent()) {
+            return entry.get().getKey();
+        } else {
+            throw new RuntimeException("There is no registered variable with index " + number);
+        }
+    }
+
     public static void registerVariableNames(List<String> varNames) {
         varNames.forEach(MyBooleanExpression::varToNumber);
     }

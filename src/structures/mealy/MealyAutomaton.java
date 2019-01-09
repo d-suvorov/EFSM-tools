@@ -4,6 +4,7 @@ import bool.MyBooleanExpression;
 import scenario.StringActions;
 import scenario.StringScenario;
 
+import java.text.ParseException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -121,10 +122,11 @@ public class MealyAutomaton {
             Collection<MealyTransition> mergedTransitions = new ArrayList<>();
             Map<String, List<MealyTransition>> groupedTransitions = transitionsByEventName(transitions);
             groupedTransitions.forEach((event, ts) -> {
-                if (canBeMerged(ts)) {
+                MyBooleanExpression common = canBeMerged(ts);
+                if (common != null) {
                     MealyTransition t = ts.get(0);
                     mergedTransitions.add(new MealyTransition(
-                            t.src(), t.dst(), event, MyBooleanExpression.getTautology(), t.actions()
+                            t.src(), t.dst(), event, common, t.actions()
                     ));
                 } else {
                     mergedTransitions.addAll(ts);
@@ -151,15 +153,36 @@ public class MealyAutomaton {
         return label.substring(0, label.length() - MyBooleanExpression.getVariablesNumber());
     }
 
-    private boolean canBeMerged(Collection<MealyTransition> transitions) {
+    private String extractVarAssignmentName(String label) {
+        return label.substring(label.length() - MyBooleanExpression.getVariablesNumber(), label.length());
+    }
+
+    private MyBooleanExpression canBeMerged(Collection<MealyTransition> transitions) {
         boolean sameDst = transitions.stream().map(MealyTransition::dst).distinct().count() == 1;
         if (!sameDst) {
-            return false;
+            return null;
         }
         boolean sameActions = transitions.stream().map(MealyTransition::actions).distinct().count() == 1;
         if (!sameActions) {
-            return false;
+            return null;
         }
-        return transitions.size() == Math.pow(2, MyBooleanExpression.getVariablesNumber());
+        if (transitions.size() == Math.pow(2, MyBooleanExpression.getVariablesNumber())) {
+            return MyBooleanExpression.getTautology();
+        }
+        // FIXME luckily we have less than 32 transitions
+        int acc = ~0;
+        for (MealyTransition t : transitions) {
+            acc &= Integer.valueOf(extractVarAssignmentName(t.event()), 2);
+        }
+        if (Integer.bitCount(acc) == 1) {
+            int pos = MyBooleanExpression.getVariablesNumber() - Integer.highestOneBit(acc);
+            String varName = MyBooleanExpression.numberToVar(pos);
+            try {
+                return MyBooleanExpression.get(varName);
+            } catch (ParseException e) {
+                throw new AssertionError();
+            }
+        }
+        return null;
     }
 }
